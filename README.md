@@ -1,0 +1,1 @@
+# the-risks-of-dichotomising-ordinal-outcome-measures
