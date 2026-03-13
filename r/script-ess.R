@@ -89,9 +89,10 @@ y[y > 5] <- NA
 survey <- data.frame("y" = y, "nuts" = nuts, "gnd" = gnd, 
                      "age" = age, "edu" = edu, "weight" = weight)
 
-#### Preparation of maps ####
+#### Map preparation ####
 
-# Loading Germany states GeoJSON
+# Load GeoJSON file with the German states:
+# https://github.com/isellsoap/deutschlandGeoJSON
 cartography <- st_read(file.path("data", "1_sehr_hoch.geo.json"))
 
 # Neighborhood structure by contiguity
