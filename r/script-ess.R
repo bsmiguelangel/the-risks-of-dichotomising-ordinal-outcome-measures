@@ -1,18 +1,13 @@
 #### Required packages ####
 
-# install.packages("pacman")
-
 # # IMPORTANT:
 # # Next line shoud be run once to install the latest development version from GitHub, enabling the use of HMC with dcar_leroux
 # remotes::install_github("nimble-dev/nimble", subdir = "packages/nimble")
 
-pacman::p_load(haven, foreign, readxl, faraway, spdep, sp, ggplot2, 
-               RColorBrewer, graphics, ggpubr, leaflet, nimble, 
-               ggmcmc, extraDistr, parallel, MCMCvis, gridExtra, 
-               corrplot, ggcorrplot, readr, lattice, nimbleHMC,
-               survey, paletteer, ggthemes, MCMCpack, sf, dplyr, 
-               terra, scico, tidyverse, tidyterra, patchwork, coda, 
-               purrr, install = FALSE)
+# install.packages("pacman", dep = TRUE)
+
+pacman::p_load(sf, spdep, ggplot2, RColorBrewer, patchwork, 
+               nimble, nimbleHMC, MCMCvis, scales, install = FALSE)
 
 rm(list = ls())
 
@@ -22,8 +17,19 @@ rm(list = ls())
 
 #### Data loading ####
 
+# ------------------------------------------------------------- #
+# Data source: European Social Survey (ESS)
+#
+# To replicate the analysis, please download the dataset from:
+# https://ess.sikt.no/en/datafile/242aaa39-3bbb-40f5-98bf-bfb1ce53d8ef
+#
+# Access to the ESS data requires a free user registration.
+# Once downloaded, extract the .zip file and place the extracted
+# CSV file in the "data" folder before running this script.
+# ------------------------------------------------------------- #
+
 # ESS data
-ESSData <- read.csv(file.path("data", "ESS11.csv"))
+ESSData <- read.csv(file.path("data", "ESS11e04_1.csv"))
 # Germany data
 ESSData <- ESSData[ESSData$cntry == "DE", ]
 
@@ -86,11 +92,7 @@ survey <- data.frame("y" = y, "nuts" = nuts, "gnd" = gnd,
 #### Preparation of maps ####
 
 # Loading Germany states GeoJSON
-cartography <- st_read(file.path("data", 
-                                 "Tiago's files", 
-                                 "deutschlandGeoJSON-main", 
-                                 "2_bundeslaender", 
-                                 "1_sehr_hoch.geo.json"))
+cartography <- st_read(file.path("data", "1_sehr_hoch.geo.json"))
 
 # Neighborhood structure by contiguity
 Neigh <- poly2nb(cartography)
@@ -120,6 +122,7 @@ Lambda <- eigen(Q)$values
 
 # Gender selection
 Gender <- 1
+Gender_Cat <- c("Man", "Woman")[Gender]
 
 ordinal_survey <- survey[survey$gnd == Gender, ]
 y <- as.numeric(ordinal_survey$y)
@@ -154,7 +157,7 @@ p_y_mean_ordinal <- ggplot(cartography) +
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
                        name = "Ordinal") +
-  theme_minimal()
+  theme_void()
 
 # Bernoulli (O1)
 limit <- c(min(cartography$y_mean_bernoulli1, na.rm = TRUE),
@@ -163,8 +166,8 @@ p_y_mean_bernoulli1 <- ggplot(cartography) +
   geom_sf(aes(fill = y_mean_bernoulli1), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
-                       name = "Bernoulli (O1)") +
-  theme_minimal()
+                       name = "Bernoulli (D+)") +
+  theme_void()
 
 # Bernoulli (O2)
 limit <- c(min(cartography$y_mean_bernoulli2, na.rm = TRUE),
@@ -173,13 +176,13 @@ p_y_mean_bernoulli2 <- ggplot(cartography) +
   geom_sf(aes(fill = y_mean_bernoulli2), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
-                       name = "Bernoulli (O2)") +
-  theme_minimal()
+                       name = "Bernoulli (D-)") +
+  theme_void()
 
 (p_y_mean_ordinal + p_y_mean_bernoulli1 + p_y_mean_bernoulli2)
 
-# ggsave(paste0(file.path("images", "Figure1.png")), 
-#        device = "png", width = 8, height = 6, dpi = 600)
+ggsave(file.path("images", paste0("descriptive_", Gender_Cat, ".png")), 
+       device = "png", width = 8, height = 6, dpi = 600)
 
 #### Data preparation ####
 
@@ -215,17 +218,17 @@ NEdu <- length(table(survey$edu))
 #### Population loading ####
 
 # population_eu: four-dimensional array containing population counts by 
-# nuts, gender, age and education group. Source: Eurostat
-population_eu <- readRDS(file = file.path("data", 
-                                          "Migue's files", 
-                                          "population-germany-new.rds"))
+# nuts, gender, age and education group.
+# The population data were obtained from Eurostat:
+# https://ec.europa.eu/eurostat/databrowser/explore/all/popul?sort=category&lang=en&subtheme=cens.cens_21.cens_21dc&display=list
+population_eu <- readRDS(file = file.path("data", "population-germany-eu.rds"))
 population_eu <- population_eu[, Gender, , ]
 
 # # population_wp: four-dimensional array containing population counts by
-# # nuts, gender, age and education group. Source: WorldPop
-# population_wp <- readRDS(file = file.path("data",
-#                                           "Migue's files",
-#                                           "population-germany-wp.rds"))
+# # nuts, gender, age and education group. 
+# # The population data were obtained from WorldPop:
+# # https://hub.worldpop.org/geodata/summary?id=96779
+# population_wp <- readRDS(file = file.path("data", "population-germany-wp.rds"))
 # population_wp <- population_wp[, Gender, , ]
 
 #### Ordinal model ####
@@ -347,17 +350,15 @@ salnimble <- pNimble(code = modelCode, data = modelData, constants = modelConsta
                      # ntfyAccount = "MigueBeneito", 
                      HMC = TRUE, parallel = TRUE)
 
-saveRDS(salnimble, file = file.path("data", 
-                                    "Migue's files", 
-                                    "ordinal-results-srh-leroux-hmc-waic-man.rds"))
+saveRDS(salnimble, file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-man.rds"))
 
 #### Bernoulli model ####
 
-# Option 1: 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
+# Option 1 (D+): 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
 y[y > 5] <- NA
 y[y == 1 | y == 2] <- 0
 y[y == 3 | y == 4 | y == 5] <- 1
-# # Option 2: 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
+# # Option 2 (D-): 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
 # y[y > 5] <- NA
 # y[y == 1 | y == 2 | y == 3] <- 0
 # y[y == 4 | y == 5] <- 1
@@ -462,29 +463,27 @@ salnimble <- pNimble(code = modelCode, data = modelData, constants = modelConsta
                      # ntfyAccount = "MigueBeneito", 
                      HMC = TRUE, parallel = TRUE)
 
-saveRDS(salnimble, file = file.path("data", 
-                                    "Migue's files", 
-                                    "bernoulli-results-srh-leroux-hmc-waic-man-o1.rds"))
+saveRDS(salnimble, file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o1.rds"))
 
 #### Model results ####
 
 ### Man ###
 
 # Ordinal regression
-ordinal_results <- readRDS(file = file.path("data", "Migue's files", "ordinal-results-srh-leroux-hmc-waic-man.rds"))
+ordinal_results <- readRDS(file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-man.rds"))
 # Logistic regression (Option 1): 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
-bernoulli_results1 <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-man-o1.rds"))
+bernoulli_results1 <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o1.rds"))
 # Logistic regression (Option 2): 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
-bernoulli_results2 <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-man-o2.rds"))
+bernoulli_results2 <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o2.rds"))
 
 ### Woman ###
 
 # Ordinal regression
-ordinal_results <- readRDS(file = file.path("data", "Migue's files", "ordinal-results-srh-leroux-hmc-waic-woman.rds"))
+ordinal_results <- readRDS(file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-woman.rds"))
 # Logistic regression (Option 1): 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
-bernoulli_results1 <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-woman-o1.rds"))
+bernoulli_results1 <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-woman-o1.rds"))
 # Logistic regression (Option 2): 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
-bernoulli_results2 <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-woman-o2.rds"))
+bernoulli_results2 <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-woman-o2.rds"))
 
 #### Convergence assessment ####
 
@@ -517,7 +516,7 @@ which((MCMCsummary(object = test, params = "rho", round = 4)[, 6]) > 1.02 | (MCM
 
 ### Bernoulli model ###
 
-bernoulli1_results$summary
+bernoulli_results1$summary
 
 # c("kappa", "theta", "sd.theta", "rho")
 
@@ -669,7 +668,7 @@ NimToWin <- function(salnimble) {
 bernoulli1_salwinbugs <- NimToWin(salnimble = bernoulli_results1$samples)
 bernoulli2_salwinbugs <- NimToWin(salnimble = bernoulli_results2$samples)
 
-#### Covariate effects ####
+#### Fixed effects ####
 
 df_plot_ord <- data.frame("param" = rownames(ordinal_results$summary)[1:6], 
                           "mean" = ordinal_results$summary[1:6, 1],
@@ -680,15 +679,15 @@ df_plot_bern1 <- data.frame("param" = rownames(bernoulli_results1$summary)[2:7],
                             "mean" = bernoulli_results1$summary[2:7, 1],
                             "lower" = bernoulli_results1$summary[2:7, 3],
                             "upper" = bernoulli_results1$summary[2:7, 5],
-                            "model" = "Bernoulli (O1)")
+                            "model" = "Bernoulli (D+)")
 df_plot_bern2 <- data.frame("param" = rownames(bernoulli_results2$summary)[2:7], 
                             "mean" = bernoulli_results2$summary[2:7, 1],
                             "lower" = bernoulli_results2$summary[2:7, 3],
                             "upper" = bernoulli_results2$summary[2:7, 5],
-                            "model" = "Bernoulli (O2)")
+                            "model" = "Bernoulli (D-)")
 df_plot <- rbind(df_plot_ord, df_plot_bern1, df_plot_bern2)
 df_plot$param <- factor(df_plot$param, levels = rev(df_plot$param[1:6]))
-df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (O1)", "Bernoulli (O2)"))
+df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (D+)", "Bernoulli (D-)"))
 
 ggplot(df_plot, aes(y = param, x = mean, color = model)) +
   geom_point(position = position_dodge(width = 0.5), size = 2) +
@@ -696,13 +695,13 @@ ggplot(df_plot, aes(y = param, x = mean, color = model)) +
                  position = position_dodge(width = 0.5), height = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_color_manual(values = c("Ordinal" = "tomato", 
-                                "Bernoulli (O1)" = "steelblue", 
-                                "Bernoulli (O2)" = "seagreen")) +
+                                "Bernoulli (D+)" = "steelblue", 
+                                "Bernoulli (D-)" = "seagreen")) +
   theme_minimal() +
   labs(x = "Posterior mean and 95% CI", y = "", color = "")
 
 df_plot <- rbind(df_plot_ord, df_plot_bern1, df_plot_bern2)
-df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (O1)", "Bernoulli (O2)"))
+df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (D+)", "Bernoulli (D-)"))
 
 ggplot(df_plot, aes(y = param, x = mean, color = model)) +
   geom_point(position = position_dodge(width = 0.5), size = 2) +
@@ -710,15 +709,15 @@ ggplot(df_plot, aes(y = param, x = mean, color = model)) +
                  position = position_dodge(width = 0.5), height = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_color_manual(values = c("Ordinal" = "tomato", 
-                                "Bernoulli (O1)" = "steelblue", 
-                                "Bernoulli (O2)" = "seagreen")) +
+                                "Bernoulli (D+)" = "steelblue", 
+                                "Bernoulli (D-)" = "seagreen")) +
   theme_minimal() +
   labs(x = "Posterior mean and 95% CI", y = "", color = "") + coord_flip()
 
-# ggsave(paste0(file.path("images", "Figure9b.png")), 
-#        device = "png", width = 8, height = 6, dpi = 600)
+ggsave(file.path("images", paste0("fixed_", Gender_Cat, ".png")), 
+       device = "png", width = 8, height = 6, dpi = 600)
 
-#### Maps ####
+#### Spatial effect ####
 
 # Posterior mean of theta's
 cartography$thetamean_ordinal <- ordinal_results$summary[startsWith(rownames(ordinal_results$summary), "theta"), 1]
@@ -730,11 +729,6 @@ cartography$thetasd_ordinal <- ordinal_results$summary[startsWith(rownames(ordin
 cartography$thetasd_bernoulli1 <- bernoulli_results1$summary[startsWith(rownames(bernoulli_results1$summary), "theta"), 2]
 cartography$thetasd_bernoulli2 <- bernoulli_results2$summary[startsWith(rownames(bernoulli_results2$summary), "theta"), 2]
 
-# CVs
-cartography$thetaCV_ordinal <- cartography$thetasd_ordinal/cartography$thetamean_ordinal
-cartography$thetaCV_bernoulli1 <- cartography$thetasd_bernoulli1/cartography$thetamean_bernoulli1
-cartography$thetaCV_bernoulli2 <- cartography$thetasd_bernoulli2/cartography$thetamean_bernoulli2
-
 # Mean
 limit <- max(abs(c(cartography$thetamean_ordinal, 
                    cartography$thetamean_bernoulli1,
@@ -743,23 +737,20 @@ p_thetamean_ordinal <- ggplot(cartography) +
   geom_sf(aes(fill = thetamean_ordinal), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
                        limits = c(-limit, limit),     
-                       values = scales::rescale(c(-limit, 0, limit)),
-                       name = "Ordinal") +
-  theme_minimal()
+                       values = rescale(c(-limit, 0, limit)),
+                       name = NULL) + theme_void()
 p_thetamean_bernoulli1 <- ggplot(cartography) + 
   geom_sf(aes(fill = thetamean_bernoulli1), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
                        limits = c(-limit, limit),     
-                       values = scales::rescale(c(-limit, 0, limit)),
-                       name = "Bernoulli (O1)") +
-  theme_minimal()
+                       values = rescale(c(-limit, 0, limit)),
+                       name = NULL) + theme_void()
 p_thetamean_bernoulli2 <- ggplot(cartography) + 
   geom_sf(aes(fill = thetamean_bernoulli2), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
                        limits = c(-limit, limit),     
-                       values = scales::rescale(c(-limit, 0, limit)),
-                       name = "Bernoulli (O2)") +
-  theme_minimal()
+                       values = rescale(c(-limit, 0, limit)),
+                       name = NULL) + theme_void()
 
 # Sd
 limit <- c(min(c(cartography$thetasd_ordinal, 
@@ -772,52 +763,40 @@ p_thetasd_ordinal <- ggplot(cartography) +
   geom_sf(aes(fill = thetasd_ordinal), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
                        limits = c(limit[1], limit[2]), 
-                       name = "Ordinal") +
-  theme_minimal()
+                       name = NULL) + theme_void()
 p_thetasd_bernoulli1 <- ggplot(cartography) + 
   geom_sf(aes(fill = thetasd_bernoulli1), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
                        limits = c(limit[1], limit[2]), 
-                       name = "Bernoulli (O1)") +
-  theme_minimal()
+                       name = NULL) + theme_void()
 p_thetasd_bernoulli2 <- ggplot(cartography) + 
   geom_sf(aes(fill = thetasd_bernoulli2), color = "grey30", linewidth = 0.2) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
                        limits = c(limit[1], limit[2]), 
-                       name = "Bernoulli (O2)") +
-  theme_minimal()
+                       name = NULL) + theme_void()
 
-(p_thetamean_ordinal + p_thetamean_bernoulli1 + p_thetamean_bernoulli2) /
-  (p_thetasd_ordinal + p_thetasd_bernoulli1 + p_thetasd_bernoulli2)
+p_thetamean_ordinal <- p_thetamean_ordinal + ggtitle("Ordinal")
+p_thetamean_bernoulli1 <- p_thetamean_bernoulli1 + ggtitle("Bernoulli (D+)")
+p_thetamean_bernoulli2 <- p_thetamean_bernoulli2 + ggtitle("Bernoulli (D-)")
 
-# CV
-limit <- c(min(c(cartography$thetaCV_ordinal, 
-                 cartography$thetaCV_bernoulli1,
-                 cartography$thetaCV_bernoulli2), na.rm = TRUE),
-           max(c(cartography$thetaCV_ordinal, 
-                 cartography$thetaCV_bernoulli1,
-                 cartography$thetaCV_bernoulli2), na.rm = TRUE))
-p_thetaCV_ordinal <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetaCV_ordinal), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = "Ordinal") +
-  theme_minimal()
-p_thetaCV_bernoulli1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetaCV_bernoulli1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = "Bernoulli (O1)") +
-  theme_minimal()
-p_thetaCV_bernoulli2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetaCV_bernoulli2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = "Bernoulli (O2)") +
-  theme_minimal()
+p_thetamean_ordinal <- p_thetamean_ordinal + labs(tag = "Mean")
+p_thetasd_ordinal <- p_thetasd_ordinal + labs(tag = "Sd")
 
-(p_thetamean_ordinal + p_thetamean_bernoulli1 + p_thetamean_bernoulli2) /
-  (p_thetaCV_ordinal + p_thetaCV_bernoulli1 + p_thetaCV_bernoulli2)
+tema_mapas <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+                    plot.tag = element_text(face = "bold", size = 13, angle = 90),
+                    plot.tag.position = c(-0.08, 0.5),
+                    plot.margin = margin(5.5, 5.5, 5.5, 20))
+
+final_plot <- wrap_plots(p_thetamean_ordinal + tema_mapas,
+                         p_thetamean_bernoulli1 + tema_mapas,
+                         p_thetamean_bernoulli2 + tema_mapas,
+                         p_thetasd_ordinal + tema_mapas,
+                         p_thetasd_bernoulli1 + tema_mapas,
+                         p_thetasd_bernoulli2 + tema_mapas, ncol = 3)
+final_plot
+
+ggsave(file.path("images", paste0("spatialEffect_", Gender_Cat, ".png")), 
+       device = "png", width = 8, height = 6, dpi = 600)
 
 #### Post-stratification ####
 
@@ -915,194 +894,173 @@ bernoulli2_post <- poststratify(salwinbugs = bernoulli2_salwinbugs)
 cartography$percentage_mean1 <- apply(ordinal_post, 2:3, mean)[, 1] * 100
 p_percentage_mean1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Very good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) +
   theme_void()
 cartography$percentage_mean2 <- apply(ordinal_post, 2:3, mean)[, 2] * 100
 p_percentage_mean2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) +
   theme_void()
 cartography$percentage_mean3 <- apply(ordinal_post, 2:3, mean)[, 3] * 100
 p_percentage_mean3 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean3), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Fair") +
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) +
   theme_void()
 cartography$percentage_mean4 <- apply(ordinal_post, 2:3, mean)[, 4] * 100
 p_percentage_mean4 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean4), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) +
   theme_void()
 cartography$percentage_mean5 <- apply(ordinal_post, 2:3, mean)[, 5] * 100
 p_percentage_mean5 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean5), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Very bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) +
   theme_void()
 
 # Sd
 cartography$percentage_sd1 <- apply(ordinal_post, 2:3, sd)[, 1] * 100
 p_percentage_sd1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Very good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) +
   theme_void()
 cartography$percentage_sd2 <- apply(ordinal_post, 2:3, sd)[, 2] * 100
 p_percentage_sd2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) +
   theme_void()
 cartography$percentage_sd3 <- apply(ordinal_post, 2:3, sd)[, 3] * 100
 p_percentage_sd3 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd3), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Fair") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) +
   theme_void()
 cartography$percentage_sd4 <- apply(ordinal_post, 2:3, sd)[, 4] * 100
 p_percentage_sd4 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd4), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) +
   theme_void()
 cartography$percentage_sd5 <- apply(ordinal_post, 2:3, sd)[, 5] * 100
 p_percentage_sd5 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd5), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Very bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) +
   theme_void()
-
-(p_percentage_mean1 + p_percentage_mean2 + p_percentage_mean3 + p_percentage_mean4 + p_percentage_mean5) / 
-  (p_percentage_sd1 + p_percentage_sd2 + p_percentage_sd3 + p_percentage_sd4 + p_percentage_sd5) 
-
-# wrap_plots(p_percentage_mean1, p_percentage_mean2, p_percentage_mean3, p_percentage_mean4, p_percentage_mean5,
-#            p_percentage_sd1, p_percentage_sd2, p_percentage_sd3, p_percentage_sd4, p_percentage_sd5,
-#            ncol = 5)
 
 # CV
 cartography$percentage_CV1 <- 100 * cartography$percentage_sd1/cartography$percentage_mean1
 p_percentage_CV1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Very good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 cartography$percentage_CV2 <- 100 * cartography$percentage_sd2/cartography$percentage_mean2
 p_percentage_CV2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 cartography$percentage_CV3 <- 100 * cartography$percentage_sd3/cartography$percentage_mean3
 p_percentage_CV3 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV3), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Fair") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 cartography$percentage_CV4 <- 100 * cartography$percentage_sd4/cartography$percentage_mean4
 p_percentage_CV4 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV4), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 cartography$percentage_CV5 <- 100 * cartography$percentage_sd5/cartography$percentage_mean5
 p_percentage_CV5 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV5), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Very bad") +
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 
-(p_percentage_mean1 + p_percentage_mean2 + p_percentage_mean3 + p_percentage_mean4 + p_percentage_mean5) / 
-  (p_percentage_CV1 + p_percentage_CV2 + p_percentage_CV3 + p_percentage_CV4 + p_percentage_CV5) 
+p_percentage_mean1 <- p_percentage_mean1 + ggtitle("Very good")
+p_percentage_mean2 <- p_percentage_mean2 + ggtitle("Good")
+p_percentage_mean3 <- p_percentage_mean3 + ggtitle("Fair")
+p_percentage_mean4 <- p_percentage_mean4 + ggtitle("Bad")
+p_percentage_mean5 <- p_percentage_mean5 + ggtitle("Very bad")
 
-# wrap_plots(p_percentage_mean1, p_percentage_mean2, p_percentage_mean3, p_percentage_mean4, p_percentage_mean5,
-#            p_percentage_CV1, p_percentage_CV2, p_percentage_CV3, p_percentage_CV4, p_percentage_CV5,
-#            ncol = 5)
+p_percentage_mean1 <- p_percentage_mean1 + labs(tag = "Mean")
+p_percentage_sd1   <- p_percentage_sd1 + labs(tag = "Sd")
+p_percentage_CV1   <- p_percentage_CV1 + labs(tag = "CV (%)")
+
+tema_mapas <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+                    plot.tag = element_text(face = "bold", size = 12, angle = 90),
+                    plot.tag.position = c(-0.08, 0.5),
+                    plot.margin = margin(5.5, 5.5, 5.5, 20))
+
+final_plot <- wrap_plots(p_percentage_mean1 + tema_mapas, 
+                         p_percentage_mean2 + tema_mapas,
+                         p_percentage_mean3 + tema_mapas, 
+                         p_percentage_mean4 + tema_mapas,
+                         p_percentage_mean5 + tema_mapas,
+                         p_percentage_sd1 + tema_mapas, 
+                         p_percentage_sd2 + tema_mapas,
+                         p_percentage_sd3 + tema_mapas, 
+                         p_percentage_sd4 + tema_mapas,
+                         p_percentage_sd5 + tema_mapas,
+                         p_percentage_CV1 + tema_mapas, 
+                         p_percentage_CV2 + tema_mapas,
+                         p_percentage_CV3 + tema_mapas, 
+                         p_percentage_CV4 + tema_mapas, 
+                         p_percentage_CV5 + tema_mapas, ncol = 5)
+final_plot
+
+ggsave(file.path("images", paste0("prevalenceOrdinal_", Gender_Cat, ".png")), 
+       device = "png", width = 15, height = 10, dpi = 600)
 
 ### Bernoulli (O1) ###
 
-cartography$percentage_mean1 <- 100 - apply(bernoulli1_post, 2, mean) * 100
-p_percentage_mean1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Good") +
-  theme_minimal()
-cartography$percentage_mean2 <- apply(bernoulli1_post, 2, mean) * 100
-p_percentage_mean2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Bad") +
-  theme_minimal()
+# Mean
+cartography$percentage_mean <- apply(bernoulli1_post, 2, mean) * 100
+p_percentage_mean <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_mean), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Mean") + 
+  theme_void()
 
-cartography$percentage_sd1 <- apply(100 - bernoulli1_post * 100, 2, sd)
-p_percentage_sd1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
-  theme_minimal()
-cartography$percentage_sd2 <- apply(bernoulli1_post, 2,  sd) * 100
-p_percentage_sd2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
-  theme_minimal()
+# Sd
+cartography$percentage_sd <- apply(bernoulli1_post, 2,  sd) * 100
+p_percentage_sd <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_sd), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Sd") + 
+  theme_void()
 
-(p_percentage_mean1 + p_percentage_mean2) / 
-  (p_percentage_sd1 + p_percentage_sd2) 
+# CV
+cartography$percentage_CV <- 100 * cartography$percentage_sd/cartography$percentage_mean
+p_percentage_CV <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_CV), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = "CV (%)") + 
+  theme_void()
 
-# wrap_plots(p_percentage_mean1, p_percentage_mean2,
-#            p_percentage_sd1, p_percentage_sd2,
-#            ncol = 2)
+wrap_plots(p_percentage_mean, p_percentage_sd, p_percentage_CV, ncol = 3)
 
-cartography$percentage_CV1 <- 100 * cartography$percentage_sd1/cartography$percentage_mean1
-p_percentage_CV1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
-  theme_minimal()
-cartography$percentage_CV2 <- 100 * cartography$percentage_sd2/cartography$percentage_mean2
-p_percentage_CV2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
-  theme_minimal()
-
-(p_percentage_mean1 + p_percentage_mean2) / 
-  (p_percentage_CV1 + p_percentage_CV2) 
-
-# wrap_plots(p_percentage_mean1, p_percentage_mean2,
-#            p_percentage_CV1, p_percentage_CV2,
-#            ncol = 2)
+ggsave(file.path("images", paste0("prevalenceDplus_", Gender_Cat, ".png")), 
+       device = "png", width = 8, height = 6, dpi = 600)
 
 ### Bernoulli (O2) ###
 
-cartography$percentage_mean1 <- 100 - apply(bernoulli2_post, 2, mean) * 100
-p_percentage_mean1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Good") +
-  theme_minimal()
-cartography$percentage_mean2 <- apply(bernoulli2_post, 2, mean) * 100
-p_percentage_mean2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Bad") +
-  theme_minimal()
+# Mean
+cartography$percentage_mean <- apply(bernoulli2_post, 2, mean) * 100
+p_percentage_mean <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_mean), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Mean") + 
+  theme_void()
 
-cartography$percentage_sd1 <- apply(100 - bernoulli2_post * 100, 2, sd)
-p_percentage_sd1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
-  theme_minimal()
-cartography$percentage_sd2 <- apply(bernoulli2_post, 2,  sd) * 100
-p_percentage_sd2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
-  theme_minimal()
+# Sd
+cartography$percentage_sd <- apply(bernoulli2_post, 2,  sd) * 100
+p_percentage_sd <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_sd), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Sd") + 
+  theme_void()
 
-(p_percentage_mean1 + p_percentage_mean2) / 
-  (p_percentage_sd1 + p_percentage_sd2) 
+# CV
+cartography$percentage_CV <- 100 * cartography$percentage_sd/cartography$percentage_mean
+p_percentage_CV <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_CV), color = "grey30", linewidth = 0.2) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = "CV (%)") + 
+  theme_void()
 
-# wrap_plots(p_percentage_mean1, p_percentage_mean2,
-#            p_percentage_sd1, p_percentage_sd2,
-#            ncol = 2)
+wrap_plots(p_percentage_mean, p_percentage_sd, p_percentage_CV, ncol = 3)
 
-cartography$percentage_CV1 <- 100 * cartography$percentage_sd1/cartography$percentage_mean1
-p_percentage_CV1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV1), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Good") +
-  theme_minimal()
-cartography$percentage_CV2 <- 100 * cartography$percentage_sd2/cartography$percentage_mean2
-p_percentage_CV2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV2), color = "grey30", linewidth = 0.2) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Bad") +
-  theme_minimal()
-
-(p_percentage_mean1 + p_percentage_mean2) / 
-  (p_percentage_CV1 + p_percentage_CV2) 
-
-# wrap_plots(p_percentage_mean1, p_percentage_mean2,
-#            p_percentage_CV1, p_percentage_CV2,
-#            ncol = 2)
+ggsave(file.path("images", paste0("prevalenceDminus_", Gender_Cat, ".png")), 
+       device = "png", width = 8, height = 6, dpi = 600)
 
 #### Additional work: models with interaction between age and edu ####
 
@@ -1242,9 +1200,7 @@ salnimble <- pNimble(code = modelCode, data = modelData, constants = modelConsta
                      # ntfyAccount = "MigueBeneito", 
                      HMC = TRUE, parallel = TRUE)
 
-saveRDS(salnimble, file = file.path("data", 
-                                    "Migue's files", 
-                                    "ordinal-results-srh-leroux-hmc-waic-man-inter.rds"))
+saveRDS(salnimble, file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-man-inter.rds"))
 
 ### Bernoulli model ###
 
@@ -1374,29 +1330,27 @@ salnimble <- pNimble(code = modelCode, data = modelData, constants = modelConsta
                      # ntfyAccount = "MigueBeneito", 
                      HMC = TRUE, parallel = TRUE)
 
-saveRDS(salnimble, file = file.path("data", 
-                                    "Migue's files", 
-                                    "bernoulli-results-srh-leroux-hmc-waic-man-o1-inter.rds"))
+saveRDS(salnimble, file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o1-inter.rds"))
 
 #### Model results (interaction) ####
 
 ### Man ###
 
 # Ordinal regression
-ordinal_results_inter <- readRDS(file = file.path("data", "Migue's files", "ordinal-results-srh-leroux-hmc-waic-man-inter.rds"))
+ordinal_results_inter <- readRDS(file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-man-inter.rds"))
 # Logistic regression (Option 1): 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
-bernoulli_results1_inter <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-man-o1-inter.rds"))
+bernoulli_results1_inter <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o1-inter.rds"))
 # Logistic regression (Option 2): 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
-bernoulli_results2_inter <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-man-o2-inter.rds"))
+bernoulli_results2_inter <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-man-o2-inter.rds"))
 
 ### Woman ###
 
 # Ordinal regression
-ordinal_results_inter <- readRDS(file = file.path("data", "Migue's files", "ordinal-results-srh-leroux-hmc-waic-woman-inter.rds"))
+ordinal_results_inter <- readRDS(file = file.path("results", "ordinal-results-srh-leroux-hmc-waic-woman-inter.rds"))
 # Logistic regression (Option 1): 0 = Very good and Good; 1 = Fair, Bad, and Very bad.
-bernoulli_results1_inter <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-woman-o1-inter.rds"))
+bernoulli_results1_inter <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-woman-o1-inter.rds"))
 # Logistic regression (Option 2): 0 = Very good, Good, and Fair; 1 = Bad and Very bad.
-bernoulli_results2_inter <- readRDS(file = file.path("data", "Migue's files", "bernoulli-results-srh-leroux-hmc-waic-woman-o2-inter.rds"))
+bernoulli_results2_inter <- readRDS(file = file.path("results", "bernoulli-results-srh-leroux-hmc-waic-woman-o2-inter.rds"))
 
 #### Covariate effects (interaction) ####
 
@@ -1409,15 +1363,15 @@ df_plot_bern1 <- data.frame("param" = rownames(bernoulli_results1_inter$summary)
                             "mean" = bernoulli_results1_inter$summary[2:16, 1],
                             "lower" = bernoulli_results1_inter$summary[2:16, 3],
                             "upper" = bernoulli_results1_inter$summary[2:16, 5],
-                            "model" = "Bernoulli (O1)")
+                            "model" = "Bernoulli (D+)")
 df_plot_bern2 <- data.frame("param" = rownames(bernoulli_results2_inter$summary)[2:16], 
                             "mean" = bernoulli_results2_inter$summary[2:16, 1],
                             "lower" = bernoulli_results2_inter$summary[2:16, 3],
                             "upper" = bernoulli_results2_inter$summary[2:16, 5],
-                            "model" = "Bernoulli (O2)")
+                            "model" = "Bernoulli (D-)")
 df_plot <- rbind(df_plot_ord, df_plot_bern1, df_plot_bern2)
 df_plot$param <- factor(df_plot$param, levels = rev(df_plot$param[1:15]))
-df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (O1)", "Bernoulli (O2)"))
+df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (D+)", "Bernoulli (D-)"))
 
 ggplot(df_plot, aes(y = param, x = mean, color = model)) +
   geom_point(position = position_dodge(width = 0.5), size = 2) +
@@ -1425,8 +1379,8 @@ ggplot(df_plot, aes(y = param, x = mean, color = model)) +
                  position = position_dodge(width = 0.5), height = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_color_manual(values = c("Ordinal" = "tomato", 
-                                "Bernoulli (O1)" = "steelblue", 
-                                "Bernoulli (O2)" = "seagreen")) +
+                                "Bernoulli (D+)" = "steelblue", 
+                                "Bernoulli (D-)" = "seagreen")) +
   theme_minimal() +
   labs(x = "Posterior mean and 95% CI", y = "", color = "")
 
