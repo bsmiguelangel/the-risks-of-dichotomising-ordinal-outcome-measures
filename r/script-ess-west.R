@@ -297,8 +297,8 @@ p_y_mean_ordinal <- ggplot(cartography) +
   geom_sf(aes(fill = y_mean_ordinal), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
-                       name = "Ordinal") +
-  theme_void()
+                       name = NULL) + ggtitle("Ordinal") +
+  theme_void() + theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12))
 
 # Bernoulli (O1)
 limit <- c(min(cartography$y_mean_bernoulli1, na.rm = TRUE),
@@ -307,8 +307,8 @@ p_y_mean_bernoulli1 <- ggplot(cartography) +
   geom_sf(aes(fill = y_mean_bernoulli1), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
-                       name = "Bernoulli (D+)") +
-  theme_void()
+                       name = NULL) + ggtitle("Bernoulli (D+)") +
+  theme_void() + theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12))
 
 # Bernoulli (O2)
 limit <- c(min(cartography$y_mean_bernoulli2, na.rm = TRUE),
@@ -317,8 +317,8 @@ p_y_mean_bernoulli2 <- ggplot(cartography) +
   geom_sf(aes(fill = y_mean_bernoulli2), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), 
                        limits = c(limit[1], limit[2]),
-                       name = "Bernoulli (D-)") +
-  theme_void()
+                       name = NULL) + ggtitle("Bernoulli (D-)") +
+  theme_void() + theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12))
 
 (p_y_mean_ordinal + p_y_mean_bernoulli1 + p_y_mean_bernoulli2)
 
@@ -950,35 +950,27 @@ df_plot_bern2 <- data.frame("param" = rownames(bernoulli_results2$summary)[2:7],
                             "upper" = bernoulli_results2$summary[2:7, 5],
                             "model" = "Bernoulli (D-)")
 df_plot <- rbind(df_plot_ord, df_plot_bern1, df_plot_bern2)
-df_plot$param <- factor(df_plot$param, levels = rev(df_plot$param[1:6]))
+df_plot$param <- factor(df_plot$param, levels = df_plot$param[1:6])
 df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (D+)", "Bernoulli (D-)"))
 
-ggplot(df_plot, aes(y = param, x = mean, color = model)) +
-  geom_point(position = position_dodge(width = 0.5), size = 2) +
-  geom_errorbarh(aes(xmin = lower, xmax = upper), 
-                 position = position_dodge(width = 0.5), height = 0.2) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
+p_fixed <- ggplot(df_plot, aes(x = param, y = mean, color = model)) +
+  geom_point(position = position_dodge(width = 0.5), size = 2.5) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                position = position_dodge(width = 0.5), width = 0.25, linewidth = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
   scale_color_manual(values = c("Ordinal" = "tomato", 
                                 "Bernoulli (D+)" = "steelblue", 
                                 "Bernoulli (D-)" = "seagreen")) +
   theme_minimal() +
-  labs(x = "Posterior mean and 95% CI", y = "", color = "")
+  theme(axis.text.x = element_text(angle = 25, hjust = 1),
+        legend.text = element_text(size = 11),
+        legend.key.size = unit(0.45, "cm")) +
+  labs(x = NULL, y = "Posterior mean and 95% CI", color = "")
 
-df_plot <- rbind(df_plot_ord, df_plot_bern1, df_plot_bern2)
-df_plot$model <- factor(df_plot$model, levels = c("Ordinal", "Bernoulli (D+)", "Bernoulli (D-)"))
-
-ggplot(df_plot, aes(y = param, x = mean, color = model)) +
-  geom_point(position = position_dodge(width = 0.5), size = 2) +
-  geom_errorbarh(aes(xmin = lower, xmax = upper), 
-                 position = position_dodge(width = 0.5), height = 0.2) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
-  scale_color_manual(values = c("Ordinal" = "tomato", 
-                                "Bernoulli (D+)" = "steelblue", 
-                                "Bernoulli (D-)" = "seagreen")) +
-  theme_minimal() +
-  labs(x = "Posterior mean and 95% CI", y = "", color = "") + coord_flip()
+p_fixed
 
 ggsave(file.path("figures", country, variable, paste0("fixed_", Gender_Cat, ".png")), 
+       plot = p_fixed,
        device = "png", width = 8, height = 6, dpi = 600)
 
 #### Spatial effect ####
@@ -1506,47 +1498,32 @@ cartography$border_prob_above5[cartography$percentage_up5 < eu_mean_post5] <- "#
 p_percentage_prob_above1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_prob_above1, color = border_prob_above1), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  scale_color_identity(na.value = NA) +
-  theme_void()
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 p_percentage_prob_above2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_prob_above2, color = border_prob_above2), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  scale_color_identity(na.value = NA) +
-  theme_void()
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 p_percentage_prob_above3 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_prob_above3, color = border_prob_above3), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  scale_color_identity(na.value = NA) +
-  theme_void()
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 p_percentage_prob_above4 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_prob_above4, color = border_prob_above4), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  scale_color_identity(na.value = NA) +
-  theme_void()
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 p_percentage_prob_above5 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_prob_above5, color = border_prob_above5), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  scale_color_identity(na.value = NA) +
-  theme_void()
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 p_percentage_mean1 <- p_percentage_mean1 + ggtitle(y_labels[1])
 p_percentage_mean2 <- p_percentage_mean2 + ggtitle(y_labels[2])
@@ -1589,63 +1566,107 @@ final_plot
 ggsave(file.path("figures", country, variable, paste0("prevalenceOrdinal_", Gender_Cat, ".png")), 
        device = "png", width = 15, height = 10, dpi = 600)
 
-### Bernoulli (O1) ###
+### Bernoulli models: D+ and D- ###
 
-# Mean
-cartography$percentage_mean <- apply(bernoulli1_post, 2, mean) * 100
-p_percentage_mean <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Mean") + 
+tema_mapas_bern <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+                         plot.tag = element_text(face = "bold", size = 12, angle = 90),
+                         plot.tag.position = c(-0.08, 0.5),
+                         plot.margin = margin(5.5, 5.5, 5.5, 20))
+
+### Bernoulli (D+) ###
+
+cartography$percentage_mean_Dplus <- apply(bernoulli1_post, 2, mean) * 100
+p_percentage_mean_Dplus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_mean_Dplus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) + 
+  ggtitle("Mean") + theme_void()
+
+cartography$percentage_sd_Dplus <- apply(bernoulli1_post, 2, sd) * 100
+p_percentage_sd_Dplus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_sd_Dplus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) + 
+  ggtitle("Sd") + theme_void()
+
+cartography$percentage_CV_Dplus <- 100 * cartography$percentage_sd_Dplus / cartography$percentage_mean_Dplus
+p_percentage_CV_Dplus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_CV_Dplus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
+  ggtitle("CV (%)") + theme_void()
+
+eu_mean_Dplus <- apply(bernoulli1_post, 1, mean)
+eu_mean_post_Dplus <- mean(eu_mean_Dplus) * 100
+
+cartography$percentage_prob_above_Dplus <- apply(bernoulli1_post > eu_mean_Dplus, 2, mean)
+cartography$percentage_low_Dplus <- apply(bernoulli1_post * 100, 2, quantile, probs = 0.025)
+cartography$percentage_up_Dplus <- apply(bernoulli1_post * 100, 2, quantile, probs = 0.975)
+
+cartography$border_prob_above_Dplus <- NA
+cartography$border_prob_above_Dplus[cartography$percentage_low_Dplus > eu_mean_post_Dplus] <- "#67000D"
+cartography$border_prob_above_Dplus[cartography$percentage_up_Dplus < eu_mean_post_Dplus] <- "#08306B"
+
+p_percentage_prob_above_Dplus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_prob_above_Dplus, color = border_prob_above_Dplus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + ggtitle("P(> EU mean)") + theme_void()
+
+p_percentage_mean_Dplus <- p_percentage_mean_Dplus + labs(tag = "Bernoulli (D+)")
+
+### Bernoulli (D-) ###
+
+cartography$percentage_mean_Dminus <- apply(bernoulli2_post, 2, mean) * 100
+p_percentage_mean_Dminus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_mean_Dminus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = NULL) + 
   theme_void()
 
-# Sd
-cartography$percentage_sd <- apply(bernoulli1_post, 2,  sd) * 100
-p_percentage_sd <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Sd") + 
+cartography$percentage_sd_Dminus <- apply(bernoulli2_post, 2, sd) * 100
+p_percentage_sd_Dminus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_sd_Dminus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = NULL) + 
   theme_void()
 
-# CV
-cartography$percentage_CV <- 100 * cartography$percentage_sd/cartography$percentage_mean
-p_percentage_CV <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = "CV (%)") + 
+cartography$percentage_CV_Dminus <- 100 * cartography$percentage_sd_Dminus / cartography$percentage_mean_Dminus
+p_percentage_CV_Dminus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_CV_Dminus), color = "grey30", linewidth = 0.1) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = NULL) + 
   theme_void()
 
-wrap_plots(p_percentage_mean, p_percentage_sd, p_percentage_CV, ncol = 3)
+eu_mean_Dminus <- apply(bernoulli2_post, 1, mean)
+eu_mean_post_Dminus <- mean(eu_mean_Dminus) * 100
 
-ggsave(file.path("figures", country, variable, paste0("prevalenceDplus_", Gender_Cat, ".png")), 
-       device = "png", width = 8, height = 6, dpi = 600)
+cartography$percentage_prob_above_Dminus <- apply(bernoulli2_post > eu_mean_Dminus, 2, mean)
+cartography$percentage_low_Dminus <- apply(bernoulli2_post * 100, 2, quantile, probs = 0.025)
+cartography$percentage_up_Dminus <- apply(bernoulli2_post * 100, 2, quantile, probs = 0.975)
 
-### Bernoulli (O2) ###
+cartography$border_prob_above_Dminus <- NA
+cartography$border_prob_above_Dminus[cartography$percentage_low_Dminus > eu_mean_post_Dminus] <- "#67000D"
+cartography$border_prob_above_Dminus[cartography$percentage_up_Dminus < eu_mean_post_Dminus] <- "#08306B"
 
-# Mean
-cartography$percentage_mean <- apply(bernoulli2_post, 2, mean) * 100
-p_percentage_mean <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_mean), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"), name = "Mean") + 
-  theme_void()
+p_percentage_prob_above_Dminus <- ggplot(cartography) + 
+  geom_sf(aes(fill = percentage_prob_above_Dminus, color = border_prob_above_Dminus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
-# Sd
-cartography$percentage_sd <- apply(bernoulli2_post, 2,  sd) * 100
-p_percentage_sd <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_sd), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), name = "Sd") + 
-  theme_void()
+p_percentage_mean_Dminus <- p_percentage_mean_Dminus + labs(tag = "Bernoulli (D-)")
 
-# CV
-cartography$percentage_CV <- 100 * cartography$percentage_sd/cartography$percentage_mean
-p_percentage_CV <- ggplot(cartography) + 
-  geom_sf(aes(fill = percentage_CV), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Greens"), name = "CV (%)") + 
-  theme_void()
+final_plot_bernoulli <- wrap_plots(p_percentage_mean_Dplus + tema_mapas_bern,
+                                   p_percentage_sd_Dplus + tema_mapas_bern,
+                                   p_percentage_CV_Dplus + tema_mapas_bern,
+                                   p_percentage_prob_above_Dplus + tema_mapas_bern,
+                                   p_percentage_mean_Dminus + tema_mapas_bern,
+                                   p_percentage_sd_Dminus + tema_mapas_bern,
+                                   p_percentage_CV_Dminus + tema_mapas_bern,
+                                   p_percentage_prob_above_Dminus + tema_mapas_bern,
+                                   ncol = 4)
 
-wrap_plots(p_percentage_mean, p_percentage_sd, p_percentage_CV, ncol = 3)
+final_plot_bernoulli
 
-ggsave(file.path("figures", country, variable, paste0("prevalenceDminus_", Gender_Cat, ".png")), 
-       device = "png", width = 8, height = 6, dpi = 600)
+ggsave(file.path("figures", country, variable, paste0("prevalenceBernoulli_", Gender_Cat, ".png")),
+       plot = final_plot_bernoulli, device = "png", width = 14, height = 7, dpi = 600)
 
-### Comparison: Bernoulli and aggregated ordinal models ###
+#### Comparison: Bernoulli and aggregated ordinal models ####
 
 # Ordinal aggregations
 ordinal_Dplus_post <- ordinal_post[, , 3] + ordinal_post[, , 4] + ordinal_post[, , 5]
@@ -1690,103 +1711,156 @@ p_percentage_mean_bernoulli1 <- ggplot(cartography) +
   geom_sf(aes(fill = percentage_mean_bernoulli1), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"),
                        limits = limit_mean_Dplus,
-                       name = NULL) +
-  ggtitle("Bernoulli (D+)") +
-  theme_void()
+                       name = NULL) + ggtitle("Bernoulli (D+)") + theme_void()
 
 p_percentage_mean_ordinal_Dplus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean_ordinal_Dplus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"),
                        limits = limit_mean_Dplus,
-                       name = NULL) +
-  ggtitle("Ordinal (D+)") +
-  theme_void()
+                       name = NULL) + ggtitle("Ordinal (D+)") + theme_void()
 
 p_percentage_mean_bernoulli2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean_bernoulli2), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"),
                        limits = limit_mean_Dminus,
-                       name = NULL) +
-  ggtitle("Bernoulli (D-)") +
-  theme_void()
+                       name = NULL) + ggtitle("Bernoulli (D-)") + theme_void()
 
 p_percentage_mean_ordinal_Dminus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_mean_ordinal_Dminus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "YlOrBr"),
                        limits = limit_mean_Dminus,
-                       name = NULL) +
-  ggtitle("Ordinal (D-)") +
-  theme_void()
+                       name = NULL) + ggtitle("Ordinal (D-)") + theme_void()
 
 # Sd maps
 p_percentage_sd_bernoulli1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd_bernoulli1), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
                        limits = limit_sd_Dplus,
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + theme_void()
 
 p_percentage_sd_ordinal_Dplus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd_ordinal_Dplus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
                        limits = limit_sd_Dplus,
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + theme_void()
 
 p_percentage_sd_bernoulli2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd_bernoulli2), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
                        limits = limit_sd_Dminus,
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + theme_void()
 
 p_percentage_sd_ordinal_Dminus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_sd_ordinal_Dminus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
                        limits = limit_sd_Dminus,
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + theme_void()
 
 # CV maps
 p_percentage_CV_bernoulli1 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV_bernoulli1), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Greens"),
                        limits = limit_CV_Dplus,
-                       name = NULL) + 
-  theme_void()
+                       name = NULL) +  theme_void()
 
 p_percentage_CV_ordinal_Dplus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV_ordinal_Dplus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Greens"),
                        limits = limit_CV_Dplus,
-                       name = NULL) + 
-  theme_void()
+                       name = NULL) + theme_void()
 
 p_percentage_CV_bernoulli2 <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV_bernoulli2), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Greens"),
                        limits = limit_CV_Dminus,
-                       name = NULL) + 
-  theme_void()
+                       name = NULL) + theme_void()
 
 p_percentage_CV_ordinal_Dminus <- ggplot(cartography) + 
   geom_sf(aes(fill = percentage_CV_ordinal_Dminus), color = "grey30", linewidth = 0.1) + 
   scale_fill_gradientn(colours = brewer.pal(9, "Greens"),
                        limits = limit_CV_Dminus,
-                       name = NULL) + 
-  theme_void()
+                       name = NULL) + theme_void()
+
+# Probability above European mean
+
+eu_mean_bernoulli1 <- apply(bernoulli1_post, 1, mean)
+eu_mean_ordinal_Dplus <- apply(ordinal_Dplus_post, 1, mean)
+eu_mean_bernoulli2 <- apply(bernoulli2_post, 1, mean)
+eu_mean_ordinal_Dminus <- apply(ordinal_Dminus_post, 1, mean)
+
+eu_mean_post_bernoulli1 <- mean(eu_mean_bernoulli1) * 100
+eu_mean_post_ordinal_Dplus <- mean(eu_mean_ordinal_Dplus) * 100
+eu_mean_post_bernoulli2 <- mean(eu_mean_bernoulli2) * 100
+eu_mean_post_ordinal_Dminus <- mean(eu_mean_ordinal_Dminus) * 100
+
+cartography$prob_above_bernoulli1 <- apply(bernoulli1_post > eu_mean_bernoulli1, 2, mean)
+cartography$prob_above_ordinal_Dplus <- apply(ordinal_Dplus_post > eu_mean_ordinal_Dplus, 2, mean)
+cartography$prob_above_bernoulli2 <- apply(bernoulli2_post > eu_mean_bernoulli2, 2, mean)
+cartography$prob_above_ordinal_Dminus <- apply(ordinal_Dminus_post > eu_mean_ordinal_Dminus, 2, mean)
+
+cartography$low_bernoulli1 <- apply(bernoulli1_post * 100, 2, quantile, probs = 0.025)
+cartography$up_bernoulli1 <- apply(bernoulli1_post * 100, 2, quantile, probs = 0.975)
+
+cartography$low_ordinal_Dplus <- apply(ordinal_Dplus_post * 100, 2, quantile, probs = 0.025)
+cartography$up_ordinal_Dplus <- apply(ordinal_Dplus_post * 100, 2, quantile, probs = 0.975)
+
+cartography$low_bernoulli2 <- apply(bernoulli2_post * 100, 2, quantile, probs = 0.025)
+cartography$up_bernoulli2 <- apply(bernoulli2_post * 100, 2, quantile, probs = 0.975)
+
+cartography$low_ordinal_Dminus <- apply(ordinal_Dminus_post * 100, 2, quantile, probs = 0.025)
+cartography$up_ordinal_Dminus <- apply(ordinal_Dminus_post * 100, 2, quantile, probs = 0.975)
+
+cartography$border_above_bernoulli1 <- NA
+cartography$border_above_bernoulli1[cartography$low_bernoulli1 > eu_mean_post_bernoulli1] <- "#67000D"
+cartography$border_above_bernoulli1[cartography$up_bernoulli1 < eu_mean_post_bernoulli1] <- "#08306B"
+
+cartography$border_above_ordinal_Dplus <- NA
+cartography$border_above_ordinal_Dplus[cartography$low_ordinal_Dplus > eu_mean_post_ordinal_Dplus] <- "#67000D"
+cartography$border_above_ordinal_Dplus[cartography$up_ordinal_Dplus < eu_mean_post_ordinal_Dplus] <- "#08306B"
+
+cartography$border_above_bernoulli2 <- NA
+cartography$border_above_bernoulli2[cartography$low_bernoulli2 > eu_mean_post_bernoulli2] <- "#67000D"
+cartography$border_above_bernoulli2[cartography$up_bernoulli2 < eu_mean_post_bernoulli2] <- "#08306B"
+
+cartography$border_above_ordinal_Dminus <- NA
+cartography$border_above_ordinal_Dminus[cartography$low_ordinal_Dminus > eu_mean_post_ordinal_Dminus] <- "#67000D"
+cartography$border_above_ordinal_Dminus[cartography$up_ordinal_Dminus < eu_mean_post_ordinal_Dminus] <- "#08306B"
+
+p_prob_above_bernoulli1 <- ggplot(cartography) + 
+  geom_sf(aes(fill = prob_above_bernoulli1, color = border_above_bernoulli1), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
+
+p_prob_above_ordinal_Dplus <- ggplot(cartography) + 
+  geom_sf(aes(fill = prob_above_ordinal_Dplus, color = border_above_ordinal_Dplus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
+
+p_prob_above_bernoulli2 <- ggplot(cartography) + 
+  geom_sf(aes(fill = prob_above_bernoulli2, color = border_above_bernoulli2), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) + 
+  scale_color_identity(na.value = NA) + theme_void()
+
+p_prob_above_ordinal_Dminus <- ggplot(cartography) + 
+  geom_sf(aes(fill = prob_above_ordinal_Dminus, color = border_above_ordinal_Dminus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
 # Row labels
 p_percentage_mean_bernoulli1 <- p_percentage_mean_bernoulli1 + labs(tag = "Mean")
 p_percentage_sd_bernoulli1 <- p_percentage_sd_bernoulli1 + labs(tag = "Sd")
 p_percentage_CV_bernoulli1 <- p_percentage_CV_bernoulli1 + labs(tag = "CV (%)")
+p_prob_above_bernoulli1 <- p_prob_above_bernoulli1 + labs(tag = "P(> EU mean)")
 
 # Theme
 tema_mapas <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
                     plot.tag = element_text(face = "bold", size = 12, angle = 90),
                     plot.tag.position = c(-0.08, 0.5), plot.margin = margin(5.5, 5.5, 5.5, 20))
 
-# Final plot
 final_plot <- wrap_plots(p_percentage_mean_bernoulli1 + tema_mapas,
                          p_percentage_mean_ordinal_Dplus + tema_mapas,
                          p_percentage_mean_bernoulli2 + tema_mapas,
@@ -1798,19 +1872,22 @@ final_plot <- wrap_plots(p_percentage_mean_bernoulli1 + tema_mapas,
                          p_percentage_CV_bernoulli1 + tema_mapas,
                          p_percentage_CV_ordinal_Dplus + tema_mapas,
                          p_percentage_CV_bernoulli2 + tema_mapas,
-                         p_percentage_CV_ordinal_Dminus + tema_mapas, ncol = 4)
+                         p_percentage_CV_ordinal_Dminus + tema_mapas,
+                         p_prob_above_bernoulli1 + tema_mapas,
+                         p_prob_above_ordinal_Dplus + tema_mapas,
+                         p_prob_above_bernoulli2 + tema_mapas,
+                         p_prob_above_ordinal_Dminus + tema_mapas, ncol = 4)
 
 final_plot
 
 ggsave(file.path("figures", country, variable, paste0("comparison_", Gender_Cat, ".png")), 
        device = "png", width = 15, height = 10, dpi = 600)
 
-### Differences: aggregated ordinal model minus Bernoulli model ###
+#### Differences: Bernoulli and aggregated ordinal models ####
 
 ordinal_Dplus_post <- ordinal_post[, , 3] + ordinal_post[, , 4] + ordinal_post[, , 5]
 ordinal_Dminus_post <- ordinal_post[, , 4] + ordinal_post[, , 5]
 
-# Differences
 diff_Dplus_post <- ordinal_Dplus_post - bernoulli1_post
 diff_Dminus_post <- ordinal_Dminus_post - bernoulli2_post
 
@@ -1818,114 +1895,123 @@ diff_Dminus_post <- ordinal_Dminus_post - bernoulli2_post
 cartography$diffmean_Dplus <- apply(diff_Dplus_post, 2, mean) * 100
 cartography$diffmean_Dminus <- apply(diff_Dminus_post, 2, mean) * 100
 
-# SD
+# Sd
 cartography$diffsd_Dplus <- apply(diff_Dplus_post, 2, sd) * 100
 cartography$diffsd_Dminus <- apply(diff_Dminus_post, 2, sd) * 100
 
+# 95% credible intervals for the differences
+cartography$difflow_Dplus <- apply(diff_Dplus_post * 100, 2, quantile, probs = 0.025)
+cartography$diffup_Dplus  <- apply(diff_Dplus_post * 100, 2, quantile, probs = 0.975)
+
+cartography$difflow_Dminus <- apply(diff_Dminus_post * 100, 2, quantile, probs = 0.025)
+cartography$diffup_Dminus  <- apply(diff_Dminus_post * 100, 2, quantile, probs = 0.975)
+
+# Probability that the difference is greater than zero
+Dplus_stepsim <- 1 * (diff_Dplus_post > 0)
+Dminus_stepsim <- 1 * (diff_Dminus_post > 0)
+
+cartography$prob_diff_Dplus_great0 <- apply(Dplus_stepsim, 2, mean)
+cartography$prob_diff_Dminus_great0 <- apply(Dminus_stepsim, 2, mean)
+
+cartography$problow_Dplus <- apply(Dplus_stepsim, 2, quantile, probs = 0.025)
+cartography$probup_Dplus  <- apply(Dplus_stepsim, 2, quantile, probs = 0.975)
+
+cartography$problow_Dminus <- apply(Dminus_stepsim, 2, quantile, probs = 0.025)
+cartography$probup_Dminus  <- apply(Dminus_stepsim, 2, quantile, probs = 0.975)
+
+# Borders
+cartography$border_mean_Dplus <- NA
+cartography$border_mean_Dplus[cartography$difflow_Dplus > 0] <- "#67000D"
+cartography$border_mean_Dplus[cartography$diffup_Dplus < 0] <- "#08306B"
+
+cartography$border_mean_Dminus <- NA
+cartography$border_mean_Dminus[cartography$difflow_Dminus > 0] <- "#67000D"
+cartography$border_mean_Dminus[cartography$diffup_Dminus < 0] <- "#08306B"
+
+cartography$border_sd_Dplus <- NA
+cartography$border_sd_Dplus[cartography$difflow_Dplus > 0 | cartography$diffup_Dplus < 0] <- "#08306B"
+
+cartography$border_sd_Dminus <- NA
+cartography$border_sd_Dminus[cartography$difflow_Dminus > 0 | cartography$diffup_Dminus < 0] <- "#08306B"
+
+cartography$border_prob_Dplus <- NA
+cartography$border_prob_Dplus[cartography$problow_Dplus > 0.5] <- "#67000D"
+cartography$border_prob_Dplus[cartography$probup_Dplus < 0.5] <- "#08306B"
+
+cartography$border_prob_Dminus <- NA
+cartography$border_prob_Dminus[cartography$problow_Dminus > 0.5] <- "#67000D"
+cartography$border_prob_Dminus[cartography$probup_Dminus < 0.5] <- "#08306B"
+
+# Common scales
 limit_diffmean <- max(abs(c(cartography$diffmean_Dplus,
                             cartography$diffmean_Dminus)), na.rm = TRUE)
 
 limit_diffsd <- range(c(cartography$diffsd_Dplus,
                         cartography$diffsd_Dminus), na.rm = TRUE)
 
-p_title_Dplus <- ggplot() +
-  annotate("text", x = 0.5, y = 0.5,
-           label = "Ordinal(D+) - Bernoulli(D+)",
-           fontface = "bold", size = 4) +
-  xlim(0, 1) + ylim(0, 1) +
-  theme_void()
-
-p_title_Dminus <- ggplot() +
-  annotate("text", x = 0.5, y = 0.5,
-           label = "Ordinal(D-) - Bernoulli(D-)",
-           fontface = "bold", size = 4) +
-  xlim(0, 1) + ylim(0, 1) +
-  theme_void()
-
+# Mean maps
 p_diffmean_Dplus <- ggplot(cartography) + 
-  geom_sf(aes(fill = diffmean_Dplus), color = "grey30", linewidth = 0.1) + 
+  geom_sf(aes(fill = diffmean_Dplus, color = border_mean_Dplus), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
                        limits = c(-limit_diffmean, limit_diffmean),
                        values = rescale(c(-limit_diffmean, 0, limit_diffmean)),
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + 
+  scale_color_identity(na.value = NA) + ggtitle("Mean") + theme_void()
 
 p_diffmean_Dminus <- ggplot(cartography) + 
-  geom_sf(aes(fill = diffmean_Dminus), color = "grey30", linewidth = 0.1) + 
+  geom_sf(aes(fill = diffmean_Dminus, color = border_mean_Dminus), linewidth = 0.45) + 
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
                        limits = c(-limit_diffmean, limit_diffmean),
                        values = rescale(c(-limit_diffmean, 0, limit_diffmean)),
-                       name = NULL) +
-  theme_void()
+                       name = NULL) + 
+  scale_color_identity(na.value = NA) + theme_void()
 
+# Sd maps
 p_diffsd_Dplus <- ggplot(cartography) + 
-  geom_sf(aes(fill = diffsd_Dplus), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
-                       limits = limit_diffsd,
-                       name = NULL) +
-  theme_void()
+  geom_sf(aes(fill = diffsd_Dplus, color = border_sd_Dplus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), limits = limit_diffsd, name = NULL) +
+  scale_color_identity(na.value = NA) + ggtitle("Sd") + theme_void()
 
 p_diffsd_Dminus <- ggplot(cartography) + 
-  geom_sf(aes(fill = diffsd_Dminus), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"),
-                       limits = limit_diffsd,
-                       name = NULL) +
-  theme_void()
+  geom_sf(aes(fill = diffsd_Dminus, color = border_sd_Dminus), linewidth = 0.45) + 
+  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), limits = limit_diffsd, name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
 
-p_diffmean_Dplus <- p_diffmean_Dplus + labs(tag = "Mean")
-p_diffsd_Dplus <- p_diffsd_Dplus + labs(tag = "Sd")
+# Probability maps
+p_prob_Dplus <- ggplot(cartography) +
+  geom_sf(aes(fill = prob_diff_Dplus_great0, color = border_prob_Dplus), linewidth = 0.45) +
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + ggtitle("P(> 0)") + theme_void()
 
-tema_mapas_diff <- theme(plot.tag = element_text(face = "bold", size = 12, angle = 90),
+p_prob_Dminus <- ggplot(cartography) +
+  geom_sf(aes(fill = prob_diff_Dminus_great0, color = border_prob_Dminus), linewidth = 0.45) +
+  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
+                       limits = c(0, 1), values = rescale(c(0, 0.5, 1)), name = NULL) +
+  scale_color_identity(na.value = NA) + theme_void()
+
+# Row labels
+p_diffmean_Dplus <- p_diffmean_Dplus + labs(tag = "Ordinal (D+) - Bernoulli (D+)")
+p_diffmean_Dminus <- p_diffmean_Dminus + labs(tag = "Ordinal (D-) - Bernoulli (D-)")
+
+# Theme
+tema_mapas_diff <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+                         plot.tag = element_text(face = "bold", size = 12, angle = 90),
                          plot.tag.position = c(-0.08, 0.5),
                          plot.margin = margin(5.5, 5.5, 5.5, 20))
 
-final_plot_diff <- (p_title_Dplus | p_title_Dminus) /
-  (p_diffmean_Dplus + tema_mapas_diff | p_diffmean_Dminus + tema_mapas_diff) /
-  (p_diffsd_Dplus + tema_mapas_diff | p_diffsd_Dminus + tema_mapas_diff) +
-  plot_layout(heights = c(0.08, 1, 1))
+# Final plot
+final_plot_diff <- wrap_plots(p_diffmean_Dplus + tema_mapas_diff,
+                              p_diffsd_Dplus + tema_mapas_diff,
+                              p_prob_Dplus + tema_mapas_diff,
+                              p_diffmean_Dminus + tema_mapas_diff,
+                              p_diffsd_Dminus + tema_mapas_diff,
+                              p_prob_Dminus + tema_mapas_diff, ncol = 3)
 
 final_plot_diff
 
-ggsave(file.path("figures", country, variable,
-                 paste0("differences_", Gender_Cat, ".png")),
-       plot = final_plot_diff,
-       device = "png", width = 7, height = 6, dpi = 600)
-
-cartography$prob_diff_Dplus_great0 <- apply(diff_Dplus_post > 0, 2, mean)
-cartography$prob_diff_Dminus_great0 <- apply(diff_Dminus_post > 0, 2, mean)
-
-tema_mapas_prob <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12))
-
-p_prob_diff_Dplus_great0 <- ggplot(cartography) +
-  geom_sf(aes(fill = prob_diff_Dplus_great0), color = "grey30", linewidth = 0.1) +
-  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  ggtitle("P(Ordinal(D+) - Bernoulli(D+) > 0)") +
-  theme_void() +
-  tema_mapas_prob
-
-p_prob_diff_Dminus_great0 <- ggplot(cartography) +
-  geom_sf(aes(fill = prob_diff_Dminus_great0), color = "grey30", linewidth = 0.1) +
-  scale_fill_gradientn(colours = brewer.pal(9, "RdYlBu")[9:1],
-                       limits = c(0, 1),
-                       values = rescale(c(0, 0.5, 1)),
-                       name = NULL) +
-  ggtitle("P(Ordinal(D-) - Bernoulli(D-) > 0)") +
-  theme_void() +
-  tema_mapas_prob
-
-final_plot_prob_great0 <- wrap_plots(p_prob_diff_Dplus_great0,
-                                     p_prob_diff_Dminus_great0,
-                                     ncol = 2)
-
-final_plot_prob_great0
-
-ggsave(file.path("figures", country, variable,
-                 paste0("probGreat0_", Gender_Cat, ".png")),
-       plot = final_plot_prob_great0,
-       device = "png", width = 7, height = 3.5, dpi = 600)
+ggsave(file.path("figures", country, variable, paste0("differences_", Gender_Cat, ".png")),
+       plot = final_plot_diff, device = "png", width = 11, height = 7, dpi = 600)
 
 #### Large SDs ####
 
@@ -1994,39 +2080,28 @@ for (capital in selected_ids) {
   bernoulli1_area <- apply(bernoulli1_post, 2, mean)[capital] * 100
   bernoulli2_area <- apply(bernoulli2_post, 2, mean)[capital] * 100
   
-  df_capitals <- rbind(
-    df_capitals,
-    data.frame(
-      category = c("Very good", "Good", "Fair", "Bad", "Very bad"),
-      mean = apply(ordinal_area, 2, mean),
-      lower = apply(ordinal_area, 2, quantile, probs = 0.025),
-      upper = apply(ordinal_area, 2, quantile, probs = 0.975),
-      area = paste0(cartography$NUTS_ID[capital],
-                    " (D+ = ", round(bernoulli1_area, 2), "%",
-                    ", D- = ", round(bernoulli2_area, 2), "%)")
-    )
-  )
+  df_capitals <- rbind(df_capitals,data.frame(
+    category = c("Very good", "Good", "Fair", "Bad", "Very bad"),
+    mean = apply(ordinal_area, 2, mean),
+    lower = apply(ordinal_area, 2, quantile, probs = 0.025),
+    upper = apply(ordinal_area, 2, quantile, probs = 0.975),
+    area = paste0(cartography$NUTS_ID[capital],
+                  " (D+ = ", round(bernoulli1_area, 2), "%",
+                  ", D- = ", round(bernoulli2_area, 2), "%)")))
 }
 
 df_capitals$category <- factor(df_capitals$category,
                                levels = c("Very good", "Good", "Fair", "Bad", "Very bad"))
 
-p_capitals <- ggplot(df_capitals,
-                     aes(x = category, y = mean, color = area)) +
-  geom_point(position = position_dodge(width = 0.6), size = 1.5) +
+p_capitals <- ggplot(df_capitals, aes(x = category, y = mean, color = area)) +
+  geom_point(position = position_dodge(width = 0.6), size = 2.5) +
   geom_errorbar(aes(ymin = lower, ymax = upper),
-                position = position_dodge(width = 0.6),
-                width = 0.25,
-                linewidth = 0.5) +
-  theme_minimal() +
-  labs(x = NULL,
-       y = "Poststratified percentage",
-       color = NULL) +
+                position = position_dodge(width = 0.6), width = 0.25, linewidth = 1) +
+  theme_minimal() + labs(x = NULL, y = "Poststratified percentage (posterior mean and 95% PI)", color = NULL) +
   theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
         axis.text.x = element_text(angle = 25, hjust = 1),
-        legend.position = "bottom",
-        legend.text = element_text(size = 10),
-        legend.key.size = unit(0.5, "cm"))
+        legend.position = "bottom", legend.text = element_text(size = 10.25),
+        legend.key.size = unit(0.6, "cm"))
 
 p_capitals
 
