@@ -1041,8 +1041,7 @@ p_thetasd_bernoulli2 <- ggplot(cartography) +
                        limits = c(limit[1], limit[2]), 
                        name = NULL) + theme_void()
 
-
-# Prob
+# Significance
 p_probmean_ordinal <- ggplot(cartography) +
   geom_sf(aes(fill = probmean_ordinal), color = "grey30", linewidth = 0.1) +
   scale_fill_gradientn(colours = brewer.pal(9, "RdYlGn")[9:1],
