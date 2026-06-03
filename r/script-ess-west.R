@@ -9,8 +9,6 @@
 pacman::p_load(sf, spdep, readxl, abind, ggplot2, RColorBrewer, patchwork, 
                nimble, nimbleHMC, MCMCvis, scales, install = FALSE)
 
-rm(list = ls())
-
 # # Loading functions for calling Nimble
 # source("https://raw.githubusercontent.com/MigueBeneito/pNimble/refs/heads/main/RutinasNimble.0.2.R")
 # load.leroux()
@@ -307,18 +305,21 @@ NEdu <- length(table(survey$edu))
 
 #### Population processing ####
 
+# # The population data were obtained from Eurostat:
+# # https://ec.europa.eu/eurostat/databrowser/view/cens_21cobe_r2/default/table?lang=en&category=cens.cens_21.cens_21dc
+# 
 # process_population <- function(country_name, country_code) {
-#   
+# 
 #   NGnd <- 2
 #   NNuts <- sum(startsWith(cartography$NUTS_ID, country_code))
-#   
+# 
 #   excels <- array(dim = c(NNuts, NGnd, 10, 9))
 #   dimnames(excels) <- list(levels(ESS$region)[startsWith(levels(ESS$region), country_code)],
 #                            levels(ESS$gndr),
 #                            c("15-29", "30-34", "35-39", "40-44", "45-49",
 #                              "50-54", "55-59", "60-64", "65-84", "85..."),
 #                            c("ED0", "ED1", "ED2", "ED3", "ED4", "ED5", "ED6", "ED7", "ED8"))
-#   
+# 
 #   for (Gender in 1:NGnd) {
 #     for (AgeGroup in 1:dim(excels)[3]) {
 #       df_aux <- read_excel(file.path("data", paste0("population-", country_name, "-eu.xlsx")),
@@ -327,13 +328,13 @@ NEdu <- length(table(survey$edu))
 #       excels[, Gender, AgeGroup, ] <- as.matrix(df_aux[, -1])
 #     }
 #   }
-#   
+# 
 #   population_aux <- array(dim = c(NNuts, NGnd, 10, NEdu))
 #   dimnames(population_aux) <- list(dimnames(excels)[[1]],
 #                                    dimnames(excels)[[2]],
 #                                    dimnames(excels)[[3]],
 #                                    c("edulow", "edumid", "eduhigh"))
-#   
+# 
 #   for (NUTS in 1:NNuts) {
 #     for (Gender in 1:NGnd) {
 #       for (AgeGroup in 1:dim(population_aux)[3]) {
@@ -343,13 +344,13 @@ NEdu <- length(table(survey$edu))
 #       }
 #     }
 #   }
-#   
+# 
 #   population <- array(dim = c(NNuts, NGnd, NAge, NEdu))
 #   dimnames(population) <- list(dimnames(population_aux)[[1]],
 #                                dimnames(population_aux)[[2]],
 #                                c("15-34", "35-54", "55..."),
 #                                dimnames(population_aux)[[4]])
-#   
+# 
 #   for (NUTS in 1:NNuts) {
 #     for (Gender in 1:NGnd) {
 #       for (EduGroup in 1:NEdu) {
@@ -359,7 +360,7 @@ NEdu <- length(table(survey$edu))
 #       }
 #     }
 #   }
-#   
+# 
 #   saveRDS(population, file = file.path("data", paste0("population-", country_name, "-eu.rds")))
 # }
 # 
@@ -367,8 +368,8 @@ NEdu <- length(table(survey$edu))
 #                                  "france", "italy", "netherlands", "portugal"),
 #                         code = c("AT", "BE", "CH", "DE", "ES", "FR", "IT", "NL", "PT"))
 # 
-# for (i in seq_len(nrow(countries))) {
-#   process_population(countries$name[i], countries$code[i])
+# for (Country in seq_len(nrow(countries))) {
+#   process_population(countries$name[Country], countries$code[Country])
 # }
 
 #### Population loading ####
@@ -740,10 +741,6 @@ bernoulli_results1 <- readRDS(file = file.path("results", paste0("bernoulli-lero
 # Logistic regression (Option 2): 0 = First three categories; 1 = Last two categories.
 bernoulli_results2 <- readRDS(file = file.path("results", paste0("bernoulli-leroux-hmc-waic-", gender, "-o2.rds")))
 
-ordinal_results$summary
-bernoulli_results1$summary
-bernoulli_results2$summary
-
 #### Convert NIMBLE output to WinBUGS-style format ####
 
 nchains <- 5
@@ -913,113 +910,6 @@ ggsave(file.path("figures", paste0("fixed_", Gender_Cat, ".png")),
        device = "png", width = 8, height = 6, dpi = 600)
 
 #### Spatial effect ####
-
-# Posterior mean of theta's
-cartography$thetamean_ordinal <- ordinal_results$summary[startsWith(rownames(ordinal_results$summary), "theta"), 1]
-cartography$thetamean_bernoulli1 <- bernoulli_results1$summary[startsWith(rownames(bernoulli_results1$summary), "theta"), 1]
-cartography$thetamean_bernoulli2 <- bernoulli_results2$summary[startsWith(rownames(bernoulli_results2$summary), "theta"), 1]
-
-# Posterior sd of theta's
-cartography$thetasd_ordinal <- ordinal_results$summary[startsWith(rownames(ordinal_results$summary), "theta"), 2]
-cartography$thetasd_bernoulli1 <- bernoulli_results1$summary[startsWith(rownames(bernoulli_results1$summary), "theta"), 2]
-cartography$thetasd_bernoulli2 <- bernoulli_results2$summary[startsWith(rownames(bernoulli_results2$summary), "theta"), 2]
-
-# Checking when theta is greater than zero
-ordinal_stepsim <- 1 * (ordinal_salwinbugs$sims.list$theta > 0)
-bernoulli1_stepsim <- 1 * (bernoulli1_salwinbugs$sims.list$theta > 0)
-bernoulli2_stepsim <- 1 * (bernoulli2_salwinbugs$sims.list$theta > 0)
-
-# Posterior probabilities of theta's
-cartography$probmean_ordinal <- apply(ordinal_stepsim, 2, mean)
-cartography$probmean_bernoulli1 <- apply(bernoulli1_stepsim, 2, mean)
-cartography$probmean_bernoulli2 <- apply(bernoulli2_stepsim, 2, mean)
-
-# Mean
-limit <- max(abs(c(cartography$thetamean_ordinal, 
-                   cartography$thetamean_bernoulli1,
-                   cartography$thetamean_bernoulli2)), na.rm = TRUE)
-p_thetamean_ordinal <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetamean_ordinal), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
-                       limits = c(-limit, limit),     
-                       values = rescale(c(-limit, 0, limit)),
-                       name = NULL) + theme_void()
-p_thetamean_bernoulli1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetamean_bernoulli1), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
-                       limits = c(-limit, limit),     
-                       values = rescale(c(-limit, 0, limit)),
-                       name = NULL) + theme_void()
-p_thetamean_bernoulli2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetamean_bernoulli2), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "BrBG")[9:1], 
-                       limits = c(-limit, limit),     
-                       values = rescale(c(-limit, 0, limit)),
-                       name = NULL) + theme_void()
-
-# Sd
-limit <- c(min(c(cartography$thetasd_ordinal, 
-                 cartography$thetasd_bernoulli1,
-                 cartography$thetasd_bernoulli2), na.rm = TRUE),
-           max(c(cartography$thetasd_ordinal, 
-                 cartography$thetasd_bernoulli1,
-                 cartography$thetasd_bernoulli2), na.rm = TRUE))
-p_thetasd_ordinal <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetasd_ordinal), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = NULL) + theme_void()
-p_thetasd_bernoulli1 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetasd_bernoulli1), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = NULL) + theme_void()
-p_thetasd_bernoulli2 <- ggplot(cartography) + 
-  geom_sf(aes(fill = thetasd_bernoulli2), color = "grey30", linewidth = 0.1) + 
-  scale_fill_gradientn(colours = brewer.pal(9, "Blues"), 
-                       limits = c(limit[1], limit[2]), 
-                       name = NULL) + theme_void()
-
-# Significance
-p_probmean_ordinal <- ggplot(cartography) +
-  geom_sf(aes(fill = probmean_ordinal), color = "grey30", linewidth = 0.1) +
-  scale_fill_gradientn(colours = brewer.pal(9, "RdYlGn")[9:1],
-                       limits = c(0, 1),
-                       name = NULL) + theme_void()
-p_probmean_bernoulli1 <- ggplot(cartography) +
-  geom_sf(aes(fill = probmean_bernoulli1), color = "grey30", linewidth = 0.1) +
-  scale_fill_gradientn(colours = brewer.pal(9, "RdYlGn")[9:1],
-                       limits = c(0, 1),
-                       name = NULL) + theme_void()
-p_probmean_bernoulli2 <- ggplot(cartography) +
-  geom_sf(aes(fill = probmean_bernoulli2), color = "grey30", linewidth = 0.1) +
-  scale_fill_gradientn(colours = brewer.pal(9, "RdYlGn")[9:1],
-                       limits = c(0, 1),
-                       name = NULL) + theme_void()
-
-p_thetamean_ordinal <- p_thetamean_ordinal + ggtitle("Ordinal")
-p_thetamean_bernoulli1 <- p_thetamean_bernoulli1 + ggtitle("Bernoulli (D+)")
-p_thetamean_bernoulli2 <- p_thetamean_bernoulli2 + ggtitle("Bernoulli (D-)")
-
-p_thetamean_ordinal <- p_thetamean_ordinal + labs(tag = "Mean")
-p_thetasd_ordinal <- p_thetasd_ordinal + labs(tag = "Sd")
-p_probmean_ordinal <- p_probmean_ordinal + labs(tag = "Significance")
-
-tema_mapas <- theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
-                    plot.tag = element_text(face = "bold", size = 13, angle = 90),
-                    plot.tag.position = c(-0.08, 0.5),
-                    plot.margin = margin(5.5, 5.5, 5.5, 20))
-
-final_plot <- wrap_plots(p_thetamean_ordinal + tema_mapas,
-                         p_thetamean_bernoulli1 + tema_mapas,
-                         p_thetamean_bernoulli2 + tema_mapas,
-                         p_thetasd_ordinal + tema_mapas,
-                         p_thetasd_bernoulli1 + tema_mapas,
-                         p_thetasd_bernoulli2 + tema_mapas,
-                         p_probmean_ordinal + tema_mapas,
-                         p_probmean_bernoulli1 + tema_mapas,
-                         p_probmean_bernoulli2 + tema_mapas, ncol = 3)
-final_plot
 
 # Posterior mean of theta's
 cartography$thetamean_ordinal <- ordinal_results$summary[startsWith(rownames(ordinal_results$summary), "theta"), 1]
@@ -1999,8 +1889,6 @@ ggsave(file.path("figures", paste0("ordinal_profiles_", Gender_Cat, ".png")),
 
 ordinal_results$summary
 
-# c("kappa", "theta", "sd.theta", "rho")
-
 MCMCsummary(object = ordinal_results$samples, params = "rho",
             # exact = TRUE,
             # ISB = FALSE,
@@ -2022,13 +1910,36 @@ which((MCMCsummary(object = test, params = "theta", round = 4)[, 6]) > 1.02 | (M
 which((MCMCsummary(object = test, params = "sd.theta", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "sd.theta", round = 4)[, 7] < 400))
 which((MCMCsummary(object = test, params = "rho", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "rho", round = 4)[, 7] < 400))
 
-### Bernoulli model ###
+### Bernoulli (D+) model ###
 
 bernoulli_results1$summary
 
-# c("kappa", "theta", "sd.theta", "rho")
-
 MCMCsummary(object = bernoulli_results1$samples, params = "rho",
+            # exact = TRUE,
+            # ISB = FALSE,
+            round = 4)
+
+MCMCtrace(object = bernoulli_results1$samples,
+          pdf = FALSE, # no export to PDF
+          ind = TRUE, # separate density lines per chain
+          Rhat = TRUE,
+          n.eff = TRUE,
+          params = "beta_0")
+
+test <- bernoulli_results1$samples
+
+which((MCMCsummary(object = test, params = "beta_0", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "beta_0", round = 4)[, 7] < 400))
+which((MCMCsummary(object = test, params = "beta_age", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "beta_age", round = 4)[, 7] < 400))
+which((MCMCsummary(object = test, params = "beta_edu", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "beta_edu", round = 4)[, 7] < 400))
+which((MCMCsummary(object = test, params = "theta", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "theta", round = 4)[, 7] < 400))
+which((MCMCsummary(object = test, params = "sd.theta", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "sd.theta", round = 4)[, 7] < 400))
+which((MCMCsummary(object = test, params = "rho", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "rho", round = 4)[, 7] < 400))
+
+### Bernoulli (D-) model ###
+
+bernoulli_results2$summary
+
+MCMCsummary(object = bernoulli_results2$samples, params = "rho",
             # exact = TRUE,
             # ISB = FALSE,
             round = 4)
@@ -2040,7 +1951,7 @@ MCMCtrace(object = bernoulli_results2$samples,
           n.eff = TRUE,
           params = "beta_0")
 
-test <- bernoulli_results1$samples
+test <- bernoulli_results2$samples
 
 which((MCMCsummary(object = test, params = "beta_0", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "beta_0", round = 4)[, 7] < 400))
 which((MCMCsummary(object = test, params = "beta_age", round = 4)[, 6]) > 1.02 | (MCMCsummary(object = test, params = "beta_age", round = 4)[, 7] < 400))
